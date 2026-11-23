@@ -1,0 +1,184 @@
+{
+  "name": "IaAutomationAvanzado",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        0,
+        0
+      ],
+      "id": "729a1f26-a01e-4e46-98aa-fcf14cce47d1",
+      "name": "When chat message received",
+      "webhookId": "aea49a62-7c40-44e6-ba8f-5921a9536fae"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "Rol: Eres un Asistente de Triaje de Soporte Técnico de Nivel 1.\n\nÁmbito Operativo: Tu función es consultar el estado de pedidos logísticos. Bajo ninguna circunstancia tienes permitido aprobar reembolsos, aplicar descuentos, cancelar órdenes ni modificar datos en la base de clientes.\n\nObjetivo: Interpretar la consulta del usuario, verificar el estado de su pedido usando tu herramienta disponible cuando proporcione un código identificador, y redactar una respuesta clara y profesional.\n\nReglas de Uso de Herramientas y Escalamiento:\n- Utiliza la herramienta de consulta únicamente si el usuario indica un código de pedido (ejemplo: ORD-101).\n- Si el usuario no brinda un código, pídeselo amablemente antes de usar cualquier herramienta.\n- Si el usuario solicita un reembolso, presenta un reclamo financiero o utiliza un tono agresivo, detén el ciclo de inmediato y responde exactamente: \"Transfiriendo tu caso a revisión humana operativa.\"",
+          "maxIterations": 6,
+          "returnIntermediateSteps": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "0cb91a90-8c82-4bad-8ae0-89d0ef0e1038",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        96,
+        208
+      ],
+      "id": "5f073eba-a5fb-44cc-85af-8fdd731cb04b",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "8LtShaqJDAosD6Ze",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Utiliza esta herramienta EXCLUSIVAMENTE cuando el usuario proporcione un número o código de pedido específico en su mensaje (por ejemplo, ORD-101). Esta herramienta consulta la hoja de cálculo de logística corporativa para obtener el estado actual del envío y la fecha estimada de entrega. NO utilices esta herramienta para saludos, preguntas generales o casos que deban ser escalados a un supervisor humano.",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1C_LTwzUl6YlOmJa2W3MBchseN9h4YY5qF4dSSVHuiEk/edit?usp=sharing",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Hoja 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1C_LTwzUl6YlOmJa2W3MBchseN9h4YY5qF4dSSVHuiEk/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "ID_Pedido",
+              "lookupValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('values0_Value', ``, 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        384,
+        208
+      ],
+      "id": "7acc3a4d-3600-435c-9fcf-0024111a30fb",
+      "name": "Get row(s) in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5v48qq3J8FQOnzyn",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0BSFKLHDRS",
+          "mode": "list",
+          "cachedResultName": "general-ia-automation"
+        },
+        "text": "=🤖 *Reporte de Observabilidad - Agente de Soporte*\n\n*Respuesta enviada al usuario:*\n{{ $json.output }}\n\n*Auditoría de herramientas (Execution Log):*\n{{ $json.intermediateSteps?.length ? $json.intermediateSteps.map((step, i) => `• Paso ${i + 1} | Herramienta: ${step.action.tool}\\n  ↳ Entrada: ${JSON.stringify(step.action.toolInput)}\\n  ↳ Resultado: ${step.observation}`).join('\\n\\n') : 'Sin uso de herramientas (respuesta directa).' }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        592,
+        0
+      ],
+      "id": "8374878b-ed30-4302-9e22-3d3e478ed59d",
+      "name": "Send a message",
+      "webhookId": "3772e4da-a289-4a6e-9224-36b2db8e53dc",
+      "credentials": {
+        "slackApi": {
+          "id": "9x2baSkSdlxmk0Xo",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "19e16a35-4f5b-4e00-986e-e7542a7c01e4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d6e7029ce25a6fa50122120db832c7505dde85f3ec6cac994587c9d5d09c0a0b"
+  },
+  "nodeGroups": [],
+  "id": "dHKJI6qteA1GNLp6",
+  "tags": []
+}
