@@ -1,0 +1,531 @@
+{
+  "name": "IaAutomationAvanzado-Manager",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        0,
+        0
+      ],
+      "id": "fc174b8f-18e7-44af-b6d9-68b6e0d254c5",
+      "name": "When chat message received",
+      "webhookId": "d7a96c28-9204-4cab-9a38-cd283e5006ac"
+    },
+    {
+      "parameters": {
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Rol: Eres un Agente de Triaje (Router) corporativo.\nRegla estricta: NO respondas al cliente ni resuelvas el problema. Tu única función es clasificar el mensaje en una taxonomía cerrada y evaluar confianza y riesgo.\n\nTaxonomía permitida (campo \"intent\"):\n- CONSULTA_PEDIDO: el usuario pregunta por el estado de un envío o entrega un código (ej. ORD-101).\n- CONSULTA_GENERAL: saludos o dudas generales sobre el servicio sin código de pedido ni reclamos financieros.\n- RECLAMO_REEMBOLSO: pedidos de devolución de dinero, cancelaciones o quejas financieras (Riesgo Alto).\n- ESCALAR_HUMANO: lenguaje agresivo, casos ambiguos o fuera de alcance.\n\nEvalúa \"confidence\" entre 0.0 y 1.0. Extrae \"order_id\" si existe (si no, devuelve cadena vacía \"\").",
+          "maxIterations": 6,
+          "returnIntermediateSteps": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "0703defe-8519-425e-91ae-1674d76d6d6b",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        96,
+        208
+      ],
+      "id": "e9c9b318-5ee3-4640-b98d-d5bcbe43a551",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "8LtShaqJDAosD6Ze",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0BSFKLHDRS",
+          "mode": "list",
+          "cachedResultName": "general-ia-automation"
+        },
+        "text": "=📊 *Log Multi-Agente (Manager → Workers)*\n*Intención:* {{ $('AI Agent').item.json.output.intent }} (Confianza: {{ $('AI Agent').item.json.output.confidence }})\n*Estado Worker Final:* {{ $json.status }}\n*Respuesta generada:*\n{{ $json.data?.respuesta_cliente || $json.message }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        1856,
+        -192
+      ],
+      "id": "0bbf7976-c468-476d-9591-a59a6d89bf23",
+      "name": "Send a message",
+      "webhookId": "bc166bbb-9fde-4123-b23c-9b84d1ef68bf",
+      "credentials": {
+        "slackApi": {
+          "id": "9x2baSkSdlxmk0Xo",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"intent\": \"CONSULTA_PEDIDO\",\n  \"order_id\": \"ORD-101\",\n  \"confidence\": 0.95,\n  \"risk_level\": \"bajo\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        368,
+        176
+      ],
+      "id": "2bd803a9-f94a-4510-9b83-69cc18f5d482",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output.intent === 'CONSULTA_PEDIDO' && Number($json.output.confidence) >= 0.85 }}",
+                    "rightValue": "CONSULTA_PEDIDO",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "1abb85e5-8fec-46ad-bd7a-31f30801ebed"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "CONSULTA_PEDIDO"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "c4c516e0-f382-487f-b16f-431aec21730d",
+                    "leftValue": "={{ $json.output.intent === 'CONSULTA_GENERAL' && Number($json.output.confidence) >= 0.85 }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "CONSULTA_GENERAL"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.5,
+      "position": [
+        592,
+        0
+      ],
+      "id": "fda76733-1950-464d-a5fa-0dcb9187e4d0",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d4497c9d-3625-43c5-bc5e-5dc7a4a3c8e2",
+              "name": "order_id",
+              "value": "={{ $json.output.order_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        896,
+        -192
+      ],
+      "id": "a2cd8ef5-904b-400a-b3ed-adbdaecef0b9",
+      "name": "Limpiar_Payload_W1"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "7rZrSKM4LkFQxHBB",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/7rZrSKM4LkFQxHBB",
+          "cachedResultName": "Worker_1_Logistica"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [
+            "order_id"
+          ],
+          "schema": [
+            {
+              "id": "order_id",
+              "displayName": "order_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        1152,
+        -192
+      ],
+      "id": "9a744f30-2e24-4e27-b710-17a07e21e714",
+      "name": "Delegar_Worker_1_Logistica"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0e399258-be54-41b1-8f6d-22a063a9c9fe",
+              "name": "original_input",
+              "value": "={{ $('When chat message received').item.json.chatInput }}",
+              "type": "string"
+            },
+            {
+              "id": "d6a4c08c-1b44-4cd8-9356-5b8f0734d727",
+              "name": "intent",
+              "value": "CONSULTA_PEDIDO",
+              "type": "string"
+            },
+            {
+              "id": "f348ad90-0f70-4c6c-a5a2-a88442e359fb",
+              "name": "context_data",
+              "value": "={{ $json.status === 'success' ? JSON.stringify($json.data) : $json.message }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1376,
+        16
+      ],
+      "id": "4fd1c447-c9e2-42f0-a1f2-38c125e1886c",
+      "name": "Limpiar_Payload_W2"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "wUet6EFWKUL33zGK",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/wUet6EFWKUL33zGK",
+          "cachedResultName": "Worker_2_Redactor"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "original_input",
+              "displayName": "original_input",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "intent",
+              "displayName": "intent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "context_data",
+              "displayName": "context_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        1632,
+        -192
+      ],
+      "id": "f217a64c-a7af-4497-9192-c1ee4ad3173d",
+      "name": "Delegar_Worker_2_Redactor"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9a9594f5-d4a5-445a-86b7-462cfc5b2098",
+              "name": "original_input",
+              "value": "={{ $('When chat message received').item.json.chatInput }}",
+              "type": "string"
+            },
+            {
+              "id": "91fe7148-99f3-43a8-9e6a-07dc2b968add",
+              "name": "intent",
+              "value": "CONSULTA_GENERAL",
+              "type": "string"
+            },
+            {
+              "id": "e7c4ff96-adf7-479e-a9a7-29e552bafede",
+              "name": "context_data",
+              "value": "Consulta informativa general sin búsqueda en base de datos.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        880,
+        16
+      ],
+      "id": "552b9ee3-8798-4c3f-acba-bc499665129d",
+      "name": "Limpiar_Payload_General"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0BSFKLHDRS",
+          "mode": "list",
+          "cachedResultName": "general-ia-automation"
+        },
+        "text": "=🚨 *Escalamiento Humano Obligatorio (HITL)* *Mensaje original:* {{ $('When chat message received').item.json.chatInput }} *Intención detectada:* {{ $json.output.intent }} | *Confianza:* {{ $json.output.confidence }} | *Riesgo:* {{ $json.output.risk_level }} *Acción:* Flujo detenido automáticamente. Requiere intervención de un supervisor.",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        832,
+        240
+      ],
+      "id": "d2633e19-108b-49a0-aa89-8369bb9cde1c",
+      "name": "Send a message1",
+      "webhookId": "31d24f7a-cd37-44b7-95c3-63066bb14fef",
+      "credentials": {
+        "slackApi": {
+          "id": "9x2baSkSdlxmk0Xo",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Limpiar_Payload_W1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Limpiar_Payload_General",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpiar_Payload_W1": {
+      "main": [
+        [
+          {
+            "node": "Delegar_Worker_1_Logistica",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delegar_Worker_1_Logistica": {
+      "main": [
+        [
+          {
+            "node": "Limpiar_Payload_W2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpiar_Payload_W2": {
+      "main": [
+        [
+          {
+            "node": "Delegar_Worker_2_Redactor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delegar_Worker_2_Redactor": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpiar_Payload_General": {
+      "main": [
+        [
+          {
+            "node": "Limpiar_Payload_W2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "394472aa-b3f4-4097-859b-d0a1a9ea5a1a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d6e7029ce25a6fa50122120db832c7505dde85f3ec6cac994587c9d5d09c0a0b"
+  },
+  "nodeGroups": [],
+  "id": "58TLVYlT84Hs2gfF",
+  "tags": []
+}

@@ -1,0 +1,198 @@
+{
+  "name": "Worker_2_Redactor",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "original_input"
+            },
+            {
+              "name": "intent"
+            },
+            {
+              "name": "context_data"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "bac91e03-ca28-440b-8095-b9d7794671f3",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Consulta original del cliente: {{ $json.original_input }}\nIntención clasificada: {{ $json.intent }}\nDatos técnicos recuperados: {{ $json.context_data }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Eres un especialista en comunicación corporativa de soporte. Redacta una respuesta clara, breve y cordial para el cliente basándote únicamente en los datos técnicos recibidos. No inventes información ni prometas reembolsos."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        224,
+        0
+      ],
+      "id": "04256c06-adfa-4caf-9f05-bf520d71f50c",
+      "name": "Basic LLM Chain",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        160,
+        208
+      ],
+      "id": "d8be0079-5616-42ba-9620-827d5c3a6514",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "8LtShaqJDAosD6Ze",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5f71701d-b0c4-4984-ac07-3e15398ad184",
+              "name": "status",
+              "value": "success",
+              "type": "string"
+            },
+            {
+              "id": "757f660f-ee7b-4bbf-9e3b-fe6470d71eb3",
+              "name": "worker",
+              "value": "redactor",
+              "type": "string"
+            },
+            {
+              "id": "b2d20654-26e9-4d65-a585-856216a7f7be",
+              "name": "data.respuesta_cliente",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        592,
+        -96
+      ],
+      "id": "8ef53fbd-4dcf-4a22-985d-4f1822e11ad4",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5eebeab3-e1db-44a7-abc0-7ff9b3651c21",
+              "name": "status",
+              "value": "error",
+              "type": "string"
+            },
+            {
+              "id": "8cbc6026-683c-439e-b511-3ae81a40d4b1",
+              "name": "worker",
+              "value": "redactor",
+              "type": "string"
+            },
+            {
+              "id": "7e192e05-d517-4939-a146-f6742054c05c",
+              "name": "message",
+              "value": "Error en el motor de redacción IA. Escalar a operador.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        592,
+        96
+      ],
+      "id": "558209bd-22d0-4d84-a046-6dc3a14a8b48",
+      "name": "Edit Fields1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "7f78272e-62ec-4d54-a7fd-6e10431ffda8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d6e7029ce25a6fa50122120db832c7505dde85f3ec6cac994587c9d5d09c0a0b"
+  },
+  "nodeGroups": [],
+  "id": "wUet6EFWKUL33zGK",
+  "tags": []
+}
